@@ -1,7 +1,7 @@
-# Un mot pour Matheo
+# Un mot pour Matheo — version JSONBin
 
-Site web statique, moderne et responsive, compatible **GitHub Pages**, permettant à des visiteurs de laisser anonymement un message à Matheo.  
-Les messages sont stockés dans **Firebase Firestore** — aucun serveur Node.js, aucun backend personnalisé.
+Site web statique, compatible **GitHub Pages**, sans Firebase ni backend.  
+Les messages sont stockés dans **JSONBin.io** via de simples requêtes `fetch()`.
 
 ---
 
@@ -10,124 +10,49 @@ Les messages sont stockés dans **Firebase Firestore** — aucun serveur Node.js
 | Fichier | Rôle |
 |---|---|
 | `index.html` | Structure HTML complète |
-| `style.css` | Design dark/admin clair, responsive, animations, toasts, modales |
-| `script.js` | Logique envoi, admin, nuage de mots, suppression |
-| `firebase-config.js` | Configuration Firebase **à compléter** |
+| `style.css` | Design dark, admin clair, responsive, animations |
+| `script.js` | Logique complète (envoi, admin, nuage de mots, suppression) |
+| `config.js` | **Vos clés JSONBin** (déjà configuré) |
 | `README.md` | Ce guide |
 
 ---
 
-## Fonctionnalités
-
-- Envoi anonyme de messages (1 200 caractères max)
-- Compteur de caractères en temps réel
-- Design sombre premium + interface admin claire
-- Toasts modernes en bas à droite (aucun `alert()`)
-- Popup mot de passe custom (aucun `prompt()`)
-- Interface admin avec 2 onglets : **Nuage de mots** et **Vue grille**
-- Mode édition : suppression avec confirmation, mise à jour automatique du nuage
-- Responsive mobile + desktop
-
----
-
-## 1. Créer un projet Firebase
-
-1. Ouvrez [https://console.firebase.google.com](https://console.firebase.google.com)
-2. Cliquez **Créer un projet**
-3. Donnez un nom, désactivez Google Analytics si inutile
-
----
-
-## 2. Activer Firestore
-
-1. Menu Firebase → **Firestore Database**
-2. **Créer une base de données** → mode **production**
-3. Choisissez une région proche (ex : `europe-west3`)
-
----
-
-## 3. Récupérer les clés de configuration
-
-1. Accueil du projet → cliquez l'icône **`</>`** (Application Web)
-2. Donnez un nom à l'application
-3. Firebase affiche un objet `firebaseConfig` avec vos clés
-
----
-
-## 4. Configurer `firebase-config.js`
-
-Ouvrez `firebase-config.js` et remplacez les valeurs :
+## Configuration actuelle (`config.js`)
 
 ```js
-const firebaseConfig = {
-  apiKey:            "VOTRE_API_KEY",
-  authDomain:        "votre-projet.firebaseapp.com",
-  projectId:         "votre-projet",
-  storageBucket:     "votre-projet.appspot.com",
-  messagingSenderId: "123456789",
-  appId:             "1:123456789:web:abcdef123456"
-};
+export const BIN_ID  = "6a174df221f9ee59d292ad38";
+export const API_KEY = "$2a$10$etsnPjhf.VIUansaih4WA.KZGHGXK9uPmf9AmnX0oYSpDO2x0aq9q";
 ```
 
+⚠️ Ces clés sont publiques dans votre dépôt GitHub.  
+N'importe qui lisant votre code peut lire/écrire dans le bin.  
+Pour un projet personnel à faible trafic, c'est acceptable.
+
 ---
 
-## 5. Structure Firestore
+## Structure des données (JSONBin)
 
-Collection : **`messages`**
-
-```js
+```json
 {
-  customId   : 1,           // entier incrémental
-  text       : "...",       // contenu du message
-  createdAt  : Timestamp,   // horodatage serveur
-  createdAtMs: 1710000000   // millisecondes (fallback affichage)
-}
-```
-
----
-
-## 6. Règles Firestore minimales
-
-Dans **Firestore > Rules** :
-
-```js
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /messages/{doc} {
-      allow read: if true;
-
-      allow create: if
-        request.resource.data.keys().hasOnly(['customId','text','createdAt','createdAtMs'])
-        && request.resource.data.customId is int
-        && request.resource.data.customId > 0
-        && request.resource.data.text is string
-        && request.resource.data.text.size() > 0
-        && request.resource.data.text.size() <= 1200
-        && request.resource.data.createdAtMs is int;
-
-      allow delete: if true;
-      allow update: if false;
+  "messages": [
+    {
+      "id"  : 1,
+      "text": "Votre message ici",
+      "date": "2026-05-27T20:00:00.000Z"
     }
-  }
+  ]
 }
 ```
 
-> **Note sécurité** : Le mot de passe admin est stocké dans `script.js` (JavaScript côté client).  
-> Il protège l'**interface visuelle** mais pas Firestore lui-même.  
-> Pour une vraie sécurité, utilisez **Firebase Authentication** et réservez `allow delete` aux utilisateurs authentifiés.
-
 ---
 
-## 7. Déploiement sur GitHub Pages
+## Déploiement GitHub Pages
 
 1. Créez un dépôt GitHub
-2. Ajoutez les fichiers à la racine
+2. Ajoutez les 5 fichiers à la racine
 3. Commit + push
-4. **Settings → Pages**
-   - Source : **Deploy from a branch**
-   - Branch : `main` / Folder : `/ (root)`
-5. Enregistrez → GitHub Pages vous donne une URL publique
+4. **Settings → Pages → Deploy from branch → main / root**
+5. Votre site est en ligne
 
 ### Structure du dépôt
 
@@ -136,31 +61,13 @@ service cloud.firestore {
 ├── index.html
 ├── style.css
 ├── script.js
-├── firebase-config.js
+├── config.js
 └── README.md
 ```
 
 ---
 
-## 8. Lancer en local
-
-### Python (recommandé)
-
-```bash
-python -m http.server 8000
-# → http://localhost:8000
-```
-
-### VS Code Live Server
-
-Ouvrez le dossier → clic droit `index.html` → **Open with Live Server**
-
-> ⚠️ Ouvrir `index.html` directement via `file://` peut bloquer les modules ES (`type="module"`).  
-> Utilisez toujours un serveur local.
-
----
-
-## 9. Changer le mot de passe admin
+## Mot de passe admin
 
 Dans `script.js`, modifiez :
 
@@ -168,22 +75,31 @@ Dans `script.js`, modifiez :
 const ADMIN_PASSWORD = "X7kP2mQa91";
 ```
 
-Remplacez par une valeur longue et aléatoire (16+ caractères recommandés).
+---
+
+## Lancer en local
+
+```bash
+python -m http.server 8000
+# → http://localhost:8000
+```
+
+> ⚠️ Ne pas ouvrir `index.html` directement via `file://` — les modules ES nécessitent un serveur HTTP.
 
 ---
 
-## 10. Limites connues
+## Limite connue
 
-- Le mot de passe admin en JavaScript **n'est pas une vraie sécurité serveur**
-- L'identifiant incrémental peut produire une collision si deux messages sont envoyés en même temps (improbable pour un usage personnel)
-- Le nuage de mots est généré côté client à partir des messages chargés
+JSONBin fonctionne en lecture-modification-réécriture.  
+Si deux personnes envoient un message exactement en même temps, le second peut écraser le premier.  
+Pour un projet personnel à faible trafic, ce cas est extrêmement rare.
 
 ---
 
-## 11. Améliorations possibles
+## Initialiser le bin (si vide)
 
-- Firebase Authentication pour un vrai compte admin
-- Supprimer via `allow delete: if request.auth != null`
-- Compteur transactionnel Firestore pour éviter les collisions d'ID
-- Export CSV des messages
-- Recherche et filtres dans la vue grille
+Si vous créez un nouveau bin vide, ajoutez manuellement ce contenu dans le dashboard JSONBin :
+
+```json
+{ "messages": [] }
+```

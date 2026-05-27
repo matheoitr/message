@@ -1,17 +1,16 @@
 /**
- * script.js — Un mot pour Matheo
- * Logique : envoi de messages, interface admin, nuage de mots, suppression.
- * Utilise Firebase Firestore (SDK v9 compat) via firebase-config.js.
+ * script.js — Un mot pour Matheo (version JSONBin)
+ * Base de données : JSONBin.io — aucun SDK, juste fetch().
+ * Toute la logique est ici : envoi, admin, nuage de mots, suppression.
  */
 
-import { db } from "./firebase-config.js";
+import { BIN_URL, API_KEY } from "./config.js";
 
 // ── Constantes ────────────────────────────────────────────────────────────
-const ADMIN_PASSWORD   = "X7kP2mQa91";   // ← modifiez ce mot de passe
-const MESSAGE_LIMIT    = 1200;
-const COLLECTION       = "messages";
+const a = "X7kP2mQa91";   // ← modifiez ce mot de passe
+const MESSAGE_LIMIT  = 1200;
 
-// Mots-outils français + termes génériques à filtrer du nuage
+// Mots-outils français filtrés du nuage de mots
 const STOP_WORDS = new Set([
   "alors","au","aucun","aussi","autre","aux","avec","avoir","bon","car","ce",
   "cela","ces","ceux","chaque","ci","comme","comment","dans","des","du","dedans",
@@ -24,54 +23,84 @@ const STOP_WORDS = new Set([
   "tellement","tels","tes","ton","tous","tout","trop","tres","tu","votre","vous",
   "vu","ca","etaient","etat","etions","ete","etre","matheo","mot","mots",
   "message","messages","cette","cet","dune","dun","cest","jai","merci",
-  "bonjour","salut","bonne","bonne","voila","bien","tres","plus","dont","veux",
-  "veux","tout","quelque","chose","vraiment","aussi","fois","tous","toi","moi",
-  "lui","une","pas","non","oui","lui","eux","aux","ces","ceux",
+  "bonjour","salut","bonne","voila","bien","tres","plus","dont","veux",
+  "quelque","chose","vraiment","fois","toi","moi","lui","une","pas","non",
+  "oui","eux","aux","ces","ceux","tres","plus","tout","bien","aussi",
 ]);
 
-// ── Sélection des éléments DOM ────────────────────────────────────────────
-const el = {
-  form              : document.getElementById("message-form"),
-  textarea          : document.getElementById("message-input"),
-  charCount         : document.getElementById("char-count"),
-  sendButton        : document.getElementById("send-button"),
-  adminAccessButton : document.getElementById("admin-access-button"),
-  toastContainer    : document.getElementById("toast-container"),
-
-  passwordModal : document.getElementById("password-modal"),
-  passwordForm  : document.getElementById("password-form"),
-  passwordInput : document.getElementById("admin-password"),
-
-  adminPanel  : document.getElementById("admin-panel"),
-  closeAdmin  : document.getElementById("close-admin"),
-  editToggle  : document.getElementById("edit-toggle"),
-  editStatus  : document.getElementById("edit-status"),
-
-  messagesGrid  : document.getElementById("messages-grid"),
-  messagesEmpty : document.getElementById("messages-empty"),
-
-  confirmModal  : document.getElementById("confirm-modal"),
-  confirmDelete : document.getElementById("confirm-delete"),
-  confirmCancel : document.getElementById("confirm-cancel"),
-
-  cloudCanvas : document.getElementById("word-cloud-canvas"),
-  cloudEmpty  : document.getElementById("word-cloud-empty"),
-
-  tabs   : [...document.querySelectorAll(".tab-button")],
-  panels : [...document.querySelectorAll(".tab-panel")],
+// ── Headers communs JSONBin ───────────────────────────────────────────────
+const HEADERS_READ = {
+  "X-Master-Key": API_KEY,
+};
+const HEADERS_WRITE = {
+  "Content-Type": "application/json",
+  "X-Master-Key": API_KEY,
 };
 
-// ── État applicatif ────────────────────────────────────────────────────────
+// ── État applicatif ───────────────────────────────────────────────────────
 const state = {
-  messages          : [],
-  editMode          : false,
-  pendingDeleteId   : null,
-  unsubscribe       : null,
-  passwordOpener    : null,
-  activeTab         : "cloud",
+  messages       : [],
+  editMode       : false,
+  pendingDeleteId: null,
+  passwordOpener : null,
+  activeTab      : "cloud",
+  saving         : false,   // verrou anti double-écriture
 };
 
-// ── Initialisation ─────────────────────────────────────────────────────────
+// ── Sélection DOM ─────────────────────────────────────────────────────────
+const el = {
+  form             : document.getElementById("message-form"),
+  textarea         : document.getElementById("message-input"),
+  charCount        : document.getElementById("char-count"),
+  sendButton       : document.getElementById("send-button"),
+  adminAccessButton: document.getElementById("admin-access-button"),
+  toastContainer   : document.getElementById("toast-container"),
+
+  passwordModal: document.getElementById("password-modal"),
+  passwordForm : document.getElementById("password-form"),
+  passwordInput: document.getElementById("admin-password"),
+
+  adminPanel    : document.getElementById("admin-panel"),
+  closeAdmin    : document.getElementById("close-admin"),
+  refreshButton : document.getElementById("refresh-button"),
+  editToggle    : document.getElementById("edit-toggle"),
+  editStatus    : document.getElementById("edit-status"),
+
+  messagesGrid : document.getElementById("messages-grid"),
+  messagesEmpty: document.getElementById("messages-empty"),
+
+  confirmModal : document.getElementById("confirm-modal"),
+  confirmDelete: document.getElementById("confirm-delete"),
+  confirmCancel: document.getElementById("confirm-cancel"),
+
+  cloudCanvas: document.getElementById("word-cloud-canvas"),
+  cloudEmpty : document.getElementById("word-cloud-empty"),
+
+  tabs  : [...document.querySelectorAll(".tab-button")],
+  panels: [...document.querySelectorAll(".tab-panel")],
+};
+
+// ── API JSONBin ───────────────────────────────────────────────────────────
+
+/** Lit le bin et retourne le tableau de messages. */
+async function fetchMessages() {
+  const res = await fetch(BIN_URL, { headers: HEADERS_READ });
+  if (!res.ok) throw new Error(`JSONBin GET ${res.status}`);
+  const data = await res.json();
+  return Array.isArray(data.record?.messages) ? data.record.messages : [];
+}
+
+/** Écrase le bin avec un nouveau tableau de messages. */
+async function saveMessages(messages) {
+  const res = await fetch(BIN_URL, {
+    method : "PUT",
+    headers: HEADERS_WRITE,
+    body   : JSON.stringify({ messages }),
+  });
+  if (!res.ok) throw new Error(`JSONBin PUT ${res.status}`);
+}
+
+// ── Initialisation ────────────────────────────────────────────────────────
 function init() {
   bindEvents();
   updateCounter();
@@ -82,7 +111,7 @@ function init() {
   }, 180));
 }
 
-// ── Liaisons d'événements ──────────────────────────────────────────────────
+// ── Événements ────────────────────────────────────────────────────────────
 function bindEvents() {
   el.form.addEventListener("submit", handleSubmit);
   el.textarea.addEventListener("input", updateCounter);
@@ -91,22 +120,20 @@ function bindEvents() {
   el.passwordForm.addEventListener("submit", handlePasswordSubmit);
 
   el.closeAdmin.addEventListener("click", closeAdminPanel);
+  el.refreshButton.addEventListener("click", refreshAdmin);
   el.editToggle.addEventListener("click", toggleEditMode);
 
   el.confirmDelete.addEventListener("click", confirmDeletion);
   el.confirmCancel.addEventListener("click", closeConfirmModal);
 
-  // Fermeture des modales via data-close-modal
   document.querySelectorAll("[data-close-modal]").forEach(btn => {
     btn.addEventListener("click", closePasswordModal);
   });
 
-  // Onglets
   el.tabs.forEach(tab => {
     tab.addEventListener("click", () => setTab(tab.dataset.tabTarget));
   });
 
-  // Suppression dans la grille
   el.messagesGrid.addEventListener("click", evt => {
     const btn = evt.target.closest("[data-delete-id]");
     if (!btn) return;
@@ -114,7 +141,6 @@ function bindEvents() {
     openConfirmModal();
   });
 
-  // Touche Échap
   document.addEventListener("keydown", evt => {
     if (evt.key !== "Escape") return;
     if (!el.confirmModal.classList.contains("hidden"))  { closeConfirmModal();  return; }
@@ -123,16 +149,17 @@ function bindEvents() {
   });
 }
 
-// ── Compteur de caractères ─────────────────────────────────────────────────
+// ── Compteur de caractères ────────────────────────────────────────────────
 function updateCounter() {
   el.charCount.textContent = `${el.textarea.value.length} / ${MESSAGE_LIMIT}`;
 }
 
-// ── Envoi d'un message ─────────────────────────────────────────────────────
+// ── Envoi d'un message ────────────────────────────────────────────────────
 async function handleSubmit(evt) {
   evt.preventDefault();
-  const text = el.textarea.value.trim();
+  if (state.saving) return;
 
+  const text = el.textarea.value.trim();
   if (!text) {
     showToast("❌ Veuillez écrire un message", "error");
     el.textarea.focus();
@@ -144,15 +171,21 @@ async function handleSubmit(evt) {
   }
 
   setSending(true);
+  state.saving = true;
 
   try {
-    const customId = await nextId();
-    await db.collection(COLLECTION).add({
-      customId,
+    // Lire → modifier → réécrire
+    const messages = await fetchMessages();
+    const nextId   = messages.length ? Math.max(...messages.map(m => m.id || 0)) + 1 : 1;
+
+    messages.push({
+      id  : nextId,
       text,
-      createdAt  : firebase.firestore.FieldValue.serverTimestamp(),
-      createdAtMs: Date.now(),
+      date: new Date().toISOString(),
     });
+
+    await saveMessages(messages);
+
     el.textarea.value = "";
     updateCounter();
     pulse(el.sendButton);
@@ -162,14 +195,8 @@ async function handleSubmit(evt) {
     showToast("❌ Impossible d'envoyer le message", "error");
   } finally {
     setSending(false);
+    state.saving = false;
   }
-}
-
-async function nextId() {
-  const snap = await db.collection(COLLECTION).orderBy("customId", "desc").limit(1).get();
-  if (snap.empty) return 1;
-  const last = snap.docs[0].data().customId;
-  return Number.isInteger(last) ? last + 1 : 1;
 }
 
 function setSending(loading) {
@@ -178,11 +205,11 @@ function setSending(loading) {
     ? `<span>Envoi en cours…</span>`
     : `<span>Envoyer le message</span>
        <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-         <path d="M5 12h14M13 5l7 7-7 7"></path>
+         <path d="M5 12h14M13 5l7 7-7 7"/>
        </svg>`;
 }
 
-// ── Modale mot de passe ────────────────────────────────────────────────────
+// ── Modale mot de passe ───────────────────────────────────────────────────
 function openPasswordModal(opener) {
   state.passwordOpener = opener || null;
   el.passwordModal.classList.remove("hidden");
@@ -199,7 +226,7 @@ function closePasswordModal() {
 
 function handlePasswordSubmit(evt) {
   evt.preventDefault();
-  if (el.passwordInput.value.trim() !== ADMIN_PASSWORD) {
+  if (el.passwordInput.value.trim() !== a) {
     showToast("❌ Mot de passe incorrect", "error");
     el.passwordInput.select();
     return;
@@ -208,41 +235,45 @@ function handlePasswordSubmit(evt) {
   openAdminPanel();
 }
 
-// ── Panel admin ────────────────────────────────────────────────────────────
-function openAdminPanel() {
+// ── Panel admin ───────────────────────────────────────────────────────────
+async function openAdminPanel() {
   el.adminPanel.classList.remove("hidden");
   el.adminPanel.setAttribute("aria-hidden", "false");
   setTab("cloud");
-  subscribe();
+  await loadAdmin();
 }
 
 function closeAdminPanel() {
   el.adminPanel.classList.add("hidden");
   el.adminPanel.setAttribute("aria-hidden", "true");
   disableEdit();
-  state.unsubscribe?.();
-  state.unsubscribe = null;
 }
 
-function subscribe() {
-  state.unsubscribe?.();
-  state.unsubscribe = db
-    .collection(COLLECTION)
-    .orderBy("customId", "asc")
-    .onSnapshot(
-      snap => {
-        state.messages = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-        renderGrid();
-        if (state.activeTab === "cloud") renderCloud();
-      },
-      err => {
-        console.error(err);
-        showToast("❌ Impossible de charger les messages", "error");
-      }
-    );
+async function loadAdmin() {
+  setRefreshing(true);
+  try {
+    state.messages = await fetchMessages();
+    renderGrid();
+    renderCloud();
+  } catch (err) {
+    console.error(err);
+    showToast("❌ Impossible de charger les messages", "error");
+  } finally {
+    setRefreshing(false);
+  }
 }
 
-// ── Onglets ────────────────────────────────────────────────────────────────
+async function refreshAdmin() {
+  await loadAdmin();
+  showToast("🔄 Messages actualisés", "success");
+}
+
+function setRefreshing(loading) {
+  el.refreshButton.classList.toggle("spin", loading);
+  el.refreshButton.disabled = loading;
+}
+
+// ── Onglets ───────────────────────────────────────────────────────────────
 function setTab(name) {
   state.activeTab = name;
   el.tabs.forEach(tab => {
@@ -258,7 +289,7 @@ function setTab(name) {
   if (name === "cloud") renderCloud();
 }
 
-// ── Grille messages ────────────────────────────────────────────────────────
+// ── Grille messages ───────────────────────────────────────────────────────
 function renderGrid() {
   el.messagesGrid.innerHTML = "";
 
@@ -269,36 +300,37 @@ function renderGrid() {
   el.messagesEmpty.classList.add("hidden");
   el.messagesGrid.classList.toggle("edit-mode", state.editMode);
 
-  const frag = document.createDocumentFragment();
-  [...state.messages]
-    .sort((a, b) => (a.customId || 0) - (b.customId || 0))
-    .forEach(msg => {
-      const art = document.createElement("article");
-      art.className = "message-card";
-      art.innerHTML = `
-        <button type="button" class="delete-btn" data-delete-id="${msg.id}" aria-label="Supprimer le message ${msg.customId || ""}">
-          <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-            <path d="M6 6 18 18M18 6 6 18"></path>
-          </svg>
-        </button>
-        <div class="message-card-header">
-          <span class="message-id">#${msg.customId ?? "?"}</span>
-          <span class="message-date">${fmtDate(msg)}</span>
-        </div>
-        <p class="message-content"></p>
-      `;
-      art.querySelector(".message-content").textContent = msg.text || "";
-      frag.appendChild(art);
-    });
+  const sorted = [...state.messages].sort((a, b) => (a.id || 0) - (b.id || 0));
+  const frag   = document.createDocumentFragment();
+
+  sorted.forEach(msg => {
+    const art = document.createElement("article");
+    art.className = "message-card";
+    art.innerHTML = `
+      <button type="button" class="delete-btn" data-delete-id="${msg.id}" aria-label="Supprimer le message ${msg.id || ""}">
+        <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+          <path d="M6 6 18 18M18 6 6 18"/>
+        </svg>
+      </button>
+      <div class="message-card-header">
+        <span class="message-id">#${msg.id ?? "?"}</span>
+        <span class="message-date">${fmtDate(msg.date)}</span>
+      </div>
+      <p class="message-content"></p>
+    `;
+    art.querySelector(".message-content").textContent = msg.text || "";
+    frag.appendChild(art);
+  });
+
   el.messagesGrid.appendChild(frag);
 }
 
-function fmtDate(msg) {
-  const d = msg.createdAt?.toDate?.() || new Date(msg.createdAtMs || Date.now());
+function fmtDate(isoString) {
+  const d = isoString ? new Date(isoString) : new Date();
   return new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium", timeStyle: "short" }).format(d);
 }
 
-// ── Mode édition ───────────────────────────────────────────────────────────
+// ── Mode édition ──────────────────────────────────────────────────────────
 function toggleEditMode() {
   state.editMode = !state.editMode;
   el.editToggle.classList.toggle("active", state.editMode);
@@ -315,7 +347,7 @@ function disableEdit() {
   el.messagesGrid.classList.remove("edit-mode");
 }
 
-// ── Modale confirmation ────────────────────────────────────────────────────
+// ── Confirmation suppression ──────────────────────────────────────────────
 function openConfirmModal() {
   el.confirmModal.classList.remove("hidden");
   el.confirmModal.setAttribute("aria-hidden", "false");
@@ -329,19 +361,26 @@ function closeConfirmModal() {
 }
 
 async function confirmDeletion() {
-  if (!state.pendingDeleteId) { closeConfirmModal(); return; }
+  const targetId = Number(state.pendingDeleteId);
+  closeConfirmModal();
+  if (!targetId) return;
+
   try {
-    await db.collection(COLLECTION).doc(state.pendingDeleteId).delete();
+    const messages = await fetchMessages();
+    const updated  = messages.filter(m => m.id !== targetId);
+    await saveMessages(updated);
+
+    state.messages = updated;
+    renderGrid();
+    renderCloud();
     showToast("🗑️ Message supprimé", "success");
   } catch (err) {
     console.error(err);
     showToast("❌ Suppression impossible", "error");
-  } finally {
-    closeConfirmModal();
   }
 }
 
-// ── Nuage de mots ──────────────────────────────────────────────────────────
+// ── Nuage de mots ─────────────────────────────────────────────────────────
 function renderCloud() {
   if (typeof WordCloud !== "function") return;
 
@@ -359,19 +398,19 @@ function renderCloud() {
   const COLORS = ["#6d97ff","#4f83ff","#2ecc8f","#8e63ff","#1e3a5f","#5b6b8a","#0f172a"];
 
   WordCloud(el.cloudCanvas, {
-    list        : entries,
-    gridSize    : Math.max(8, Math.round(el.cloudCanvas.width / 48)),
-    weightFactor: size => Math.max(16, size * (el.cloudCanvas.width / 900) * 1.9),
-    fontFamily  : '"Manrope", "Inter", sans-serif',
-    fontWeight  : "700",
-    color       : () => COLORS[Math.floor(Math.random() * COLORS.length)],
+    list          : entries,
+    gridSize      : Math.max(8, Math.round(el.cloudCanvas.width / 48)),
+    weightFactor  : size => Math.max(16, size * (el.cloudCanvas.width / 900) * 1.9),
+    fontFamily    : '"Manrope", "Inter", sans-serif',
+    fontWeight    : "700",
+    color         : () => COLORS[Math.floor(Math.random() * COLORS.length)],
     backgroundColor: "rgba(0,0,0,0)",
-    rotateRatio : 0.06,
-    rotationSteps: 2,
-    shuffle     : true,
+    rotateRatio   : 0.06,
+    rotationSteps : 2,
+    shuffle       : true,
     drawOutOfBound: false,
-    shape       : "circle",
-    ellipticity : 0.82,
+    shape         : "circle",
+    ellipticity   : 0.82,
   });
 }
 
@@ -385,8 +424,7 @@ function buildEntries(messages) {
       .split(/\s+/)
       .forEach(w => {
         const word = w.replace(/^[-']+|[-']+$/g, "");
-        if (word.length < 3) return;
-        if (STOP_WORDS.has(word)) return;
+        if (word.length < 3 || STOP_WORDS.has(word)) return;
         counts.set(word, (counts.get(word) || 0) + 1);
       });
   });
@@ -398,16 +436,15 @@ function buildEntries(messages) {
 
 function prepareCanvas() {
   const ratio = Math.max(window.devicePixelRatio || 1, 1);
-  const w     = Math.max(el.cloudCanvas.clientWidth  || 760, 320);
-  const h     = Math.max(Math.min(Math.round(w * 0.58), 520), 300);
+  const w = Math.max(el.cloudCanvas.clientWidth || 760, 320);
+  const h = Math.max(Math.min(Math.round(w * 0.58), 520), 300);
 
-  el.cloudCanvas.width         = w * ratio;
-  el.cloudCanvas.height        = h * ratio;
-  el.cloudCanvas.style.width   = `${w}px`;
-  el.cloudCanvas.style.height  = `${h}px`;
+  el.cloudCanvas.width        = w * ratio;
+  el.cloudCanvas.height       = h * ratio;
+  el.cloudCanvas.style.width  = `${w}px`;
+  el.cloudCanvas.style.height = `${h}px`;
 
-  const ctx = el.cloudCanvas.getContext("2d");
-  ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+  el.cloudCanvas.getContext("2d").setTransform(ratio, 0, 0, ratio, 0, 0);
 }
 
 function clearCanvas() {
@@ -415,7 +452,7 @@ function clearCanvas() {
   ctx.clearRect(0, 0, el.cloudCanvas.width, el.cloudCanvas.height);
 }
 
-// ── Toasts ─────────────────────────────────────────────────────────────────
+// ── Toasts ────────────────────────────────────────────────────────────────
 function showToast(msg, type = "success") {
   const toast = document.createElement("div");
   toast.className = `toast ${type}`;
@@ -429,7 +466,7 @@ function showToast(msg, type = "success") {
   }, 2800);
 }
 
-// ── Utilitaires ────────────────────────────────────────────────────────────
+// ── Utilitaires ───────────────────────────────────────────────────────────
 function pulse(target) {
   target.classList.remove("success-pulse");
   void target.offsetWidth;
@@ -438,11 +475,8 @@ function pulse(target) {
 
 function debounce(fn, delay = 150) {
   let timer;
-  return (...args) => {
-    clearTimeout(timer);
-    timer = setTimeout(() => fn(...args), delay);
-  };
+  return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), delay); };
 }
 
-// ── Lancement ─────────────────────────────────────────────────────────────
+// ── Démarrage ─────────────────────────────────────────────────────────────
 init();

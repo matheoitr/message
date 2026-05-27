@@ -3,72 +3,79 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Laissez anonymement un message à Matheo via une interface moderne et responsive." />
-    <title>Un mot pour Matheo</title>
+    <meta name="description" content="Laisse un mot à Matheo pour sa fin d'année de Terminale." />
+    <title>Signatures Terminale — Matheo</title>
 
+    <!-- Caveat = police façon écriture manuscrite, Fraunces = titre élégant -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@500;700;800&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600;700&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;1,9..144,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="./style.css" />
 
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/wordcloud@1.2.3/src/wordcloud2.min.js"></script>
     <script type="module" src="./script.js"></script>
   </head>
   <body>
     <a class="skip-link" href="#main-content">Aller au contenu</a>
 
+    <!-- Lignes de papier déco en fond -->
+    <div class="bg-lines" aria-hidden="true">
+      <div class="bg-line"></div><div class="bg-line"></div><div class="bg-line"></div>
+      <div class="bg-line"></div><div class="bg-line"></div><div class="bg-line"></div>
+      <div class="bg-line"></div><div class="bg-line"></div><div class="bg-line"></div>
+    </div>
+
     <div class="app-shell">
       <main id="main-content" class="main-layout" aria-live="polite">
         <section class="message-panel" aria-labelledby="page-title">
           <div class="brand-row">
             <div class="brand-mark" aria-hidden="true">
-              <svg viewBox="0 0 56 56" role="img" aria-label="Logo Un mot pour Matheo">
-                <rect x="6" y="6" width="44" height="44" rx="16" stroke="currentColor" stroke-width="3" fill="none"></rect>
-                <path d="M18 36V20l10 10 10-10v16" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"></path>
+              <svg viewBox="0 0 24 24" role="img" aria-label="Logo Signatures Terminale" fill="none">
+                <path d="M12 20h9" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
               </svg>
             </div>
             <div>
-              <p class="eyebrow">Message anonyme</p>
-              <h1 id="page-title">Voulez-vous laisser un mot à Matheo&nbsp;?</h1>
+              <p class="eyebrow">Année de Terminale • Vos signatures</p>
+              <h1 id="page-title">Laisse-moi un petit mot doux&nbsp;!</h1>
             </div>
           </div>
 
           <p class="intro-copy">
-            Écrivez un message librement. Il sera enregistré de manière anonyme dans un espace privé dédié à Matheo.
+            Comme sur un t-shirt blanc ou une chemise de fin d'année : écris-moi un message gentil, un délire qu'on a eu ensemble ou juste ta signature pour que je m'en rappelle plus tard.
           </p>
 
           <form id="message-form" class="message-form" novalidate>
-            <label for="message-input" class="field-label">Votre message</label>
+            <label for="message-input" class="field-label">Ton mot au marqueur virtuel</label>
             <div class="textarea-wrap">
               <textarea
                 id="message-input"
                 name="message"
                 rows="10"
                 maxlength="1200"
-                placeholder="Écrivez votre message ici…"
+                placeholder="Un souvenir avec moi, un mot gentil, notre plus gros fou rire..."
                 aria-describedby="message-help"
                 required
               ></textarea>
               <div class="field-meta">
-                <span id="message-help">1 200 caractères maximum</span>
+                <span id="message-help">1 200 caractères max</span>
                 <span id="char-count">0 / 1200</span>
               </div>
             </div>
 
             <div class="actions-stack">
               <button type="submit" id="send-button" class="btn btn-primary btn-large">
-                <span>Envoyer le message</span>
+                <span>Signer sur le site</span>
                 <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M5 12h14M13 5l7 7-7 7"></path>
+                  <path d="M20 6 9 17l-5-5"></path>
                 </svg>
               </button>
 
               <button type="button" id="admin-access-button" class="btn btn-secondary btn-large">
-                <span>Montrer le nuage de mots</span>
+                <span>Voir le nuage de mots</span>
                 <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M7 18a4 4 0 0 1-.6-7.95A5.5 5.5 0 0 1 17 8.5h.5a4.5 4.5 0 1 1 0 9H7Z"></path>
+                  <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"></path>
+                  <path d="M12 16v-4M12 8h.01"></path>
                 </svg>
               </button>
             </div>
@@ -77,7 +84,7 @@
       </main>
     </div>
 
-    <!-- ── Interface admin ─────────────────────────────────────────── -->
+    <!-- ── Panel admin ───────────────────────────────────────────────────── -->
     <section id="admin-panel" class="admin-panel hidden" aria-hidden="true" aria-labelledby="admin-title">
       <div class="admin-backdrop"></div>
       <div class="admin-window" role="dialog" aria-modal="true">
@@ -87,15 +94,23 @@
             <h2 id="admin-title">Espace admin</h2>
           </div>
           <div class="admin-header-actions">
-            <button type="button" id="edit-toggle" class="icon-button" aria-label="Activer le mode édition" title="Activer le mode édition">
-              <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M4 20h4l10.5-10.5a2.12 2.12 0 0 0-3-3L5 17v3Z"></path>
-                <path d="m13.5 6.5 4 4"></path>
+            <button type="button" id="refresh-button" class="icon-button" aria-label="Rafraîchir" title="Rafraîchir">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
+                <path d="M21 3v5h-5"/>
+                <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
+                <path d="M8 16H3v5"/>
               </svg>
             </button>
-            <button type="button" id="close-admin" class="icon-button" aria-label="Fermer l'interface admin" title="Fermer">
-              <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                <path d="M6 6 18 18M18 6 6 18"></path>
+            <button type="button" id="edit-toggle" class="icon-button" aria-label="Activer le mode édition" title="Mode édition">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M4 20h4l10.5-10.5a2.12 2.12 0 0 0-3-3L5 17v3Z"/>
+                <path d="m13.5 6.5 4 4"/>
+              </svg>
+            </button>
+            <button type="button" id="close-admin" class="icon-button" aria-label="Fermer" title="Fermer">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+                <path d="M6 6 18 18M18 6 6 18"/>
               </svg>
             </button>
           </div>
@@ -107,26 +122,24 @@
         </div>
 
         <div class="admin-body">
-          <!-- Onglet nuage de mots -->
           <section id="panel-cloud" class="tab-panel active" role="tabpanel" aria-labelledby="tab-cloud">
             <div class="admin-panel-headline">
               <div>
                 <h3>Nuage de mots</h3>
-                <p>Les mots les plus fréquents apparaissent plus grands. Les termes trop courts et les mots-outils français sont filtrés.</p>
+                <p>Les mots les plus fréquents apparaissent plus grands. Mots-outils filtrés.</p>
               </div>
             </div>
             <div class="word-cloud-card">
               <canvas id="word-cloud-canvas"></canvas>
-              <div id="word-cloud-empty" class="empty-state hidden">Pas assez de messages pour générer un nuage de mots.</div>
+              <div id="word-cloud-empty" class="empty-state hidden">Pas encore assez de messages pour générer un nuage de mots.</div>
             </div>
           </section>
 
-          <!-- Onglet vue grille -->
           <section id="panel-grid" class="tab-panel" role="tabpanel" aria-labelledby="tab-grid" hidden>
             <div class="admin-panel-headline split-layout">
               <div>
                 <h3>Vue grille</h3>
-                <p>Toutes les contributions sont affichées avec leur identifiant, leur date et leur contenu complet.</p>
+                <p>Identifiant, date et contenu complet de chaque message.</p>
               </div>
               <div class="admin-status-badge" id="edit-status">Mode lecture</div>
             </div>
@@ -137,19 +150,19 @@
       </div>
     </section>
 
-    <!-- ── Toasts ──────────────────────────────────────────────────── -->
+    <!-- ── Toasts ──────────────────────────────────────────────────────── -->
     <div id="toast-container" class="toast-container" aria-live="assertive" aria-atomic="true"></div>
 
-    <!-- ── Modale mot de passe ─────────────────────────────────────── -->
+    <!-- ── Modale mot de passe ────────────────────────────────────────── -->
     <section id="password-modal" class="modal hidden" aria-hidden="true">
       <div class="modal-overlay" data-close-modal></div>
       <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="password-title">
-        <button type="button" class="modal-close" data-close-modal aria-label="Fermer la fenêtre">
-          <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6 18 18M18 6 6 18"></path></svg>
+        <button type="button" class="modal-close" data-close-modal aria-label="Fermer">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6 18 18M18 6 6 18"/></svg>
         </button>
         <p class="eyebrow">Accès protégé</p>
-        <h2 id="password-title">Entrez le mot de passe admin</h2>
-        <p class="modal-copy">Ce mot de passe permet d'accéder au nuage de mots et à la vue d'administration.</p>
+        <h2 id="password-title">Mot de passe admin</h2>
+        <p class="modal-copy">Ce mot de passe donne accès au nuage de mots et aux messages.</p>
         <form id="password-form" class="modal-form" novalidate>
           <label class="field-label" for="admin-password">Mot de passe</label>
           <input id="admin-password" name="password" type="password" autocomplete="off" placeholder="Mot de passe" required />
@@ -161,13 +174,13 @@
       </div>
     </section>
 
-    <!-- ── Modale confirmation suppression ────────────────────────── -->
+    <!-- ── Modale confirmation ───────────────────────────────────────── -->
     <section id="confirm-modal" class="modal hidden" aria-hidden="true">
       <div class="modal-overlay"></div>
       <div class="modal-dialog small" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
         <p class="eyebrow warning">Suppression</p>
         <h2 id="confirm-title">Supprimer ce message&nbsp;?</h2>
-        <p class="modal-copy">Cette action est définitive. Le nuage de mots sera mis à jour automatiquement.</p>
+        <p class="modal-copy">Cette action est définitive. Le nuage sera mis à jour automatiquement.</p>
         <div class="modal-actions">
           <button type="button" class="btn btn-ghost" id="confirm-cancel">Annuler</button>
           <button type="button" class="btn btn-danger" id="confirm-delete">Supprimer</button>
