@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Laissez anonymement un message à Matheo via une interface moderne et responsive." />
+    <title>Un mot pour Matheo</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@500;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./style.css" />
+
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/wordcloud@1.2.3/src/wordcloud2.min.js"></script>
+    <script type="module" src="./script.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Aller au contenu</a>
+
+    <div class="app-shell">
+      <main id="main-content" class="main-layout" aria-live="polite">
+        <section class="message-panel" aria-labelledby="page-title">
+          <div class="brand-row">
+            <div class="brand-mark" aria-hidden="true">
+              <svg viewBox="0 0 56 56" role="img" aria-label="Logo Un mot pour Matheo">
+                <rect x="6" y="6" width="44" height="44" rx="16" stroke="currentColor" stroke-width="3" fill="none"></rect>
+                <path d="M18 36V20l10 10 10-10v16" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"></path>
+              </svg>
+            </div>
+            <div>
+              <p class="eyebrow">Message anonyme</p>
+              <h1 id="page-title">Voulez-vous laisser un mot à Matheo&nbsp;?</h1>
+            </div>
+          </div>
+
+          <p class="intro-copy">
+            Écrivez un message librement. Il sera enregistré de manière anonyme dans un espace privé dédié à Matheo.
+          </p>
+
+          <form id="message-form" class="message-form" novalidate>
+            <label for="message-input" class="field-label">Votre message</label>
+            <div class="textarea-wrap">
+              <textarea
+                id="message-input"
+                name="message"
+                rows="10"
+                maxlength="1200"
+                placeholder="Écrivez votre message ici…"
+                aria-describedby="message-help"
+                required
+              ></textarea>
+              <div class="field-meta">
+                <span id="message-help">1 200 caractères maximum</span>
+                <span id="char-count">0 / 1200</span>
+              </div>
+            </div>
+
+            <div class="actions-stack">
+              <button type="submit" id="send-button" class="btn btn-primary btn-large">
+                <span>Envoyer le message</span>
+                <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M5 12h14M13 5l7 7-7 7"></path>
+                </svg>
+              </button>
+
+              <button type="button" id="admin-access-button" class="btn btn-secondary btn-large">
+                <span>Montrer le nuage de mots</span>
+                <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M7 18a4 4 0 0 1-.6-7.95A5.5 5.5 0 0 1 17 8.5h.5a4.5 4.5 0 1 1 0 9H7Z"></path>
+                </svg>
+              </button>
+            </div>
+          </form>
+        </section>
+      </main>
+    </div>
+
+    <!-- ── Interface admin ─────────────────────────────────────────── -->
+    <section id="admin-panel" class="admin-panel hidden" aria-hidden="true" aria-labelledby="admin-title">
+      <div class="admin-backdrop"></div>
+      <div class="admin-window" role="dialog" aria-modal="true">
+        <header class="admin-header">
+          <div>
+            <p class="eyebrow admin-eyebrow">Interface privée</p>
+            <h2 id="admin-title">Espace admin</h2>
+          </div>
+          <div class="admin-header-actions">
+            <button type="button" id="edit-toggle" class="icon-button" aria-label="Activer le mode édition" title="Activer le mode édition">
+              <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 20h4l10.5-10.5a2.12 2.12 0 0 0-3-3L5 17v3Z"></path>
+                <path d="m13.5 6.5 4 4"></path>
+              </svg>
+            </button>
+            <button type="button" id="close-admin" class="icon-button" aria-label="Fermer l'interface admin" title="Fermer">
+              <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <path d="M6 6 18 18M18 6 6 18"></path>
+              </svg>
+            </button>
+          </div>
+        </header>
+
+        <div class="admin-tabs" role="tablist" aria-label="Sections admin">
+          <button type="button" class="tab-button active" data-tab-target="cloud" id="tab-cloud" role="tab" aria-selected="true" aria-controls="panel-cloud">Nuage de mots</button>
+          <button type="button" class="tab-button" data-tab-target="grid" id="tab-grid" role="tab" aria-selected="false" aria-controls="panel-grid">Vue grille</button>
+        </div>
+
+        <div class="admin-body">
+          <!-- Onglet nuage de mots -->
+          <section id="panel-cloud" class="tab-panel active" role="tabpanel" aria-labelledby="tab-cloud">
+            <div class="admin-panel-headline">
+              <div>
+                <h3>Nuage de mots</h3>
+                <p>Les mots les plus fréquents apparaissent plus grands. Les termes trop courts et les mots-outils français sont filtrés.</p>
+              </div>
+            </div>
+            <div class="word-cloud-card">
+              <canvas id="word-cloud-canvas"></canvas>
+              <div id="word-cloud-empty" class="empty-state hidden">Pas assez de messages pour générer un nuage de mots.</div>
+            </div>
+          </section>
+
+          <!-- Onglet vue grille -->
+          <section id="panel-grid" class="tab-panel" role="tabpanel" aria-labelledby="tab-grid" hidden>
+            <div class="admin-panel-headline split-layout">
+              <div>
+                <h3>Vue grille</h3>
+                <p>Toutes les contributions sont affichées avec leur identifiant, leur date et leur contenu complet.</p>
+              </div>
+              <div class="admin-status-badge" id="edit-status">Mode lecture</div>
+            </div>
+            <div id="messages-grid" class="messages-grid"></div>
+            <div id="messages-empty" class="empty-state hidden">Aucun message enregistré pour le moment.</div>
+          </section>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Toasts ──────────────────────────────────────────────────── -->
+    <div id="toast-container" class="toast-container" aria-live="assertive" aria-atomic="true"></div>
+
+    <!-- ── Modale mot de passe ─────────────────────────────────────── -->
+    <section id="password-modal" class="modal hidden" aria-hidden="true">
+      <div class="modal-overlay" data-close-modal></div>
+      <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="password-title">
+        <button type="button" class="modal-close" data-close-modal aria-label="Fermer la fenêtre">
+          <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6 18 18M18 6 6 18"></path></svg>
+        </button>
+        <p class="eyebrow">Accès protégé</p>
+        <h2 id="password-title">Entrez le mot de passe admin</h2>
+        <p class="modal-copy">Ce mot de passe permet d'accéder au nuage de mots et à la vue d'administration.</p>
+        <form id="password-form" class="modal-form" novalidate>
+          <label class="field-label" for="admin-password">Mot de passe</label>
+          <input id="admin-password" name="password" type="password" autocomplete="off" placeholder="Mot de passe" required />
+          <div class="modal-actions">
+            <button type="button" class="btn btn-ghost" data-close-modal>Annuler</button>
+            <button type="submit" class="btn btn-primary">Valider</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- ── Modale confirmation suppression ────────────────────────── -->
+    <section id="confirm-modal" class="modal hidden" aria-hidden="true">
+      <div class="modal-overlay"></div>
+      <div class="modal-dialog small" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+        <p class="eyebrow warning">Suppression</p>
+        <h2 id="confirm-title">Supprimer ce message&nbsp;?</h2>
+        <p class="modal-copy">Cette action est définitive. Le nuage de mots sera mis à jour automatiquement.</p>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-ghost" id="confirm-cancel">Annuler</button>
+          <button type="button" class="btn btn-danger" id="confirm-delete">Supprimer</button>
+        </div>
+      </div>
+    </section>
+  </body>
+</html>
